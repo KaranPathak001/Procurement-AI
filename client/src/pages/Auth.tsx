@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, Lock, Mail } from 'lucide-react';
+import { ArrowRight, Lock, Mail, User, Building2, Users } from 'lucide-react';
 import { BackgroundGrid, Spotlight } from '../components/aceternity';
 import api from '../services/api';
 
+// ─── Login Page ──────────────────────────────────────────────────────────────
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('karan@acmetech.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -21,30 +22,22 @@ export const LoginPage: React.FC = () => {
       const res = await api.post('/auth/login', { email, password });
       localStorage.setItem('procureai_token', res.data.token);
       localStorage.setItem('procureai_user', JSON.stringify(res.data.user));
-      navigate('/dashboard');
+
+      // Route based on role
+      const role = res.data.user?.role;
+      if (role === 'vendor') {
+        navigate('/vendor/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err: any) {
-      localStorage.setItem('procureai_token', 'demo_jwt_token_2026');
-      localStorage.setItem(
-        'procureai_user',
-        JSON.stringify({ name: 'Karan Patel', email, companyName: 'Acme Technologies', role: 'procurement_lead' })
+      setError(
+        err.response?.data?.error ||
+          'Invalid credentials. Please check your email and password.'
       );
-      navigate('/dashboard');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleQuickDemo = async () => {
-    setLoading(true);
-    try {
-      await api.post('/demo/seed');
-    } catch (e) {}
-    localStorage.setItem('procureai_token', 'demo_jwt_token_2026');
-    localStorage.setItem(
-      'procureai_user',
-      JSON.stringify({ name: 'Karan Patel', email: 'karan@acmetech.com', companyName: 'Acme Technologies', role: 'procurement_lead' })
-    );
-    navigate('/dashboard');
   };
 
   return (
@@ -62,7 +55,7 @@ export const LoginPage: React.FC = () => {
               Procure<span className="bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">AI</span>
             </span>
           </Link>
-          <p className="text-xs text-slate-400">Sign in to your enterprise procurement workspace</p>
+          <p className="text-xs text-slate-400">Sign in to your procurement workspace</p>
         </div>
 
         {error && (
@@ -81,7 +74,7 @@ export const LoginPage: React.FC = () => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="karan@acmetech.com"
+                placeholder="you@company.com"
                 className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-3 py-2.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-purple-500/50 text-xs"
               />
             </div>
@@ -105,61 +98,65 @@ export const LoginPage: React.FC = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold py-3 rounded-xl shadow-lg shadow-purple-950/50 transition hover:scale-102 disabled:opacity-50"
+            className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold py-3 rounded-xl shadow-lg shadow-purple-950/50 transition disabled:opacity-50"
           >
-            <span>{loading ? 'Authenticating...' : 'Sign In to Workspace'}</span>
+            <span>{loading ? 'Signing in...' : 'Sign In'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
 
-        <div className="pt-2 border-t border-slate-800/80 space-y-3">
-          <button
-            type="button"
-            onClick={handleQuickDemo}
-            className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-purple-500/30 text-purple-300 text-xs font-semibold transition"
-          >
-            Launch Instant Demo Workspace (Karan Patel / Acme)
-          </button>
-
-          <div className="text-center text-xs text-slate-500">
-            Don't have an organization account?{' '}
-            <Link to="/register" className="text-purple-400 hover:underline">
-              Create one
-            </Link>
-          </div>
+        <div className="pt-2 border-t border-slate-800/80 text-center text-xs text-slate-500">
+          Don't have an account?{' '}
+          <Link to="/register" className="text-purple-400 hover:underline">
+            Register now
+          </Link>
         </div>
       </motion.div>
     </BackgroundGrid>
   );
 };
 
+// ─── Register Page ───────────────────────────────────────────────────────────
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
-  const [name, setName] = useState('Karan Patel');
-  const [email, setEmail] = useState('karan@acmetech.com');
-  const [password, setPassword] = useState('password123');
-  const [companyName, setCompanyName] = useState('Acme Technologies');
+  const [role, setRole] = useState<'buyer' | 'vendor'>('buyer');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [companyName, setCompanyName] = useState('');
   const [companySize, setCompanySize] = useState('50-250');
+  const [vendorCategories, setVendorCategories] = useState('');
+  const [vendorLocation, setVendorLocation] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     try {
-      const res = await api.post('/auth/register', {
-        name,
-        email,
-        password,
-        companyName,
-        companySize,
-      });
+      const payload: any = { name, email, password, role, companyName };
+      if (role === 'buyer') {
+        payload.companySize = companySize;
+      } else {
+        payload.categories = vendorCategories
+          .split(',')
+          .map((c) => c.trim())
+          .filter(Boolean);
+        payload.location = vendorLocation;
+      }
+
+      const res = await api.post('/auth/register', payload);
       localStorage.setItem('procureai_token', res.data.token);
       localStorage.setItem('procureai_user', JSON.stringify(res.data.user));
-      navigate('/onboarding');
-    } catch (err) {
-      localStorage.setItem('procureai_token', 'demo_jwt_token_2026');
-      localStorage.setItem('procureai_user', JSON.stringify({ name, email, companyName }));
-      navigate('/onboarding');
+
+      if (role === 'vendor') {
+        navigate('/vendor/dashboard');
+      } else {
+        navigate('/onboarding');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -180,92 +177,175 @@ export const RegisterPage: React.FC = () => {
               Procure<span className="bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">AI</span>
             </span>
           </Link>
-          <p className="text-xs text-slate-400">Create your company's procurement account</p>
+          <p className="text-xs text-slate-400">Create your account</p>
         </div>
 
-        <form onSubmit={handleRegister} className="space-y-3.5 text-xs">
+        {/* Role Selector */}
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { id: 'buyer', label: 'Buyer / Company', icon: Building2, desc: 'Source & procure products' },
+            { id: 'vendor', label: 'Vendor / Supplier', icon: Users, desc: 'List products & get orders' },
+          ].map(({ id, label, icon: Icon, desc }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setRole(id as any)}
+              className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border text-xs transition ${
+                role === id
+                  ? 'bg-purple-950/60 border-purple-500 text-purple-200'
+                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-600'
+              }`}
+            >
+              <Icon className="w-5 h-5" />
+              <span className="font-semibold">{label}</span>
+              <span className="text-slate-500 text-[10px] text-center">{desc}</span>
+            </button>
+          ))}
+        </div>
+
+        {error && (
+          <div className="p-3 bg-rose-950/40 border border-rose-800 rounded-xl text-xs text-rose-300">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleRegister} className="space-y-3 text-xs">
           <div>
             <label className="text-slate-300 font-medium block mb-1">Your Full Name</label>
-            <input
-              type="text"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-purple-500/50"
-            />
+            <div className="relative">
+              <User className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Jane Smith"
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-slate-100 focus:outline-none focus:border-purple-500/50"
+              />
+            </div>
           </div>
 
           <div>
             <label className="text-slate-300 font-medium block mb-1">Work Email</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-purple-500/50"
-            />
+            <div className="relative">
+              <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@company.com"
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-slate-100 focus:outline-none focus:border-purple-500/50"
+              />
+            </div>
           </div>
 
           <div>
-            <label className="text-slate-300 font-medium block mb-1">Company / Organization Name</label>
-            <input
-              type="text"
-              required
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-purple-500/50"
-            />
+            <label className="text-slate-300 font-medium block mb-1">
+              {role === 'buyer' ? 'Company Name' : 'Business / Brand Name'}
+            </label>
+            <div className="relative">
+              <Building2 className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                required
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                placeholder={role === 'buyer' ? 'Acme Technologies' : 'ErgoWorks Suppliers'}
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-slate-100 focus:outline-none focus:border-purple-500/50"
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="text-slate-300 font-medium block mb-1">Company Headcount</label>
-            <select
-              value={companySize}
-              onChange={(e) => setCompanySize(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-purple-500/50"
-            >
-              <option value="10-50">10-50 employees</option>
-              <option value="50-250">50-250 employees</option>
-              <option value="250-1000">250-1000 employees</option>
-              <option value="1000+">1000+ Enterprise</option>
-            </select>
-          </div>
+          {role === 'buyer' && (
+            <div>
+              <label className="text-slate-300 font-medium block mb-1">Company Headcount</label>
+              <select
+                value={companySize}
+                onChange={(e) => setCompanySize(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-purple-500/50"
+              >
+                <option value="1-10">1–10 employees</option>
+                <option value="10-50">10–50 employees</option>
+                <option value="50-250">50–250 employees</option>
+                <option value="250-1000">250–1000 employees</option>
+                <option value="1000+">1000+ Enterprise</option>
+              </select>
+            </div>
+          )}
+
+          {role === 'vendor' && (
+            <>
+              <div>
+                <label className="text-slate-300 font-medium block mb-1">Product Categories</label>
+                <input
+                  type="text"
+                  value={vendorCategories}
+                  onChange={(e) => setVendorCategories(e.target.value)}
+                  placeholder="e.g. Office Furniture, IT Hardware, Packaging"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-purple-500/50"
+                />
+                <p className="text-slate-600 mt-0.5">Comma-separated</p>
+              </div>
+              <div>
+                <label className="text-slate-300 font-medium block mb-1">Business Location</label>
+                <input
+                  type="text"
+                  value={vendorLocation}
+                  onChange={(e) => setVendorLocation(e.target.value)}
+                  placeholder="Mumbai, India"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-purple-500/50"
+                />
+              </div>
+            </>
+          )}
 
           <div>
             <label className="text-slate-300 font-medium block mb-1">Password</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-purple-500/50"
-            />
+            <div className="relative">
+              <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+              <input
+                type="password"
+                required
+                minLength={8}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Min. 8 characters"
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-slate-100 focus:outline-none focus:border-purple-500/50"
+              />
+            </div>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold py-3 rounded-xl shadow-lg shadow-purple-950/50 transition hover:scale-102 mt-2"
+            className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold py-3 rounded-xl shadow-lg shadow-purple-950/50 transition disabled:opacity-50 mt-2"
           >
-            <span>{loading ? 'Creating...' : 'Continue to Onboarding'}</span>
+            <span>{loading ? 'Creating account...' : 'Create Account'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
+
+        <div className="pt-2 border-t border-slate-800/80 text-center text-xs text-slate-500">
+          Already have an account?{' '}
+          <Link to="/login" className="text-purple-400 hover:underline">
+            Sign in
+          </Link>
+        </div>
       </motion.div>
     </BackgroundGrid>
   );
 };
 
+// ─── Onboarding Page (Buyer only) ────────────────────────────────────────────
 export const OnboardingPage: React.FC = () => {
   const navigate = useNavigate();
-  const [categories, setCategories] = useState<string[]>([
-    'Ergonomic Office Furniture',
-    'IT Hardware & Laptops',
-    'Packaging & Logistics',
-  ]);
-  const [monthlySpend, setMonthlySpend] = useState('50000');
-  const [location, setLocation] = useState('Delhi, India');
-  const [currency, setCurrency] = useState('USD');
+  const [categories, setCategories] = useState<string[]>([]);
+  const [monthlySpend, setMonthlySpend] = useState('');
+  const [location, setLocation] = useState('');
+  const [currency, setCurrency] = useState('INR');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const availableCategories = [
     'Ergonomic Office Furniture',
@@ -274,26 +354,37 @@ export const OnboardingPage: React.FC = () => {
     'Office Pantry & Hospitality',
     'Data Infrastructure & Servers',
     'Marketing & Print Media',
+    'Lab Equipment',
+    'Safety & PPE',
+    'Industrial Supplies',
   ];
 
   const toggleCategory = (cat: string) => {
-    if (categories.includes(cat)) {
-      setCategories(categories.filter((c) => c !== cat));
-    } else {
-      setCategories([...categories, cat]);
-    }
+    setCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
+    );
   };
 
   const handleFinish = async () => {
+    if (!location.trim()) {
+      setError('Please enter your primary procurement location.');
+      return;
+    }
+    setLoading(true);
+    setError('');
     try {
       await api.post('/onboarding', {
         procurementCategories: categories,
-        monthlySpendBudget: Number(monthlySpend),
+        monthlySpendBudget: Number(monthlySpend) || 0,
         procurementLocation: location,
         preferredCurrency: currency,
       });
-    } catch (e) {}
-    navigate('/dashboard');
+      navigate('/dashboard');
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to save preferences. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -315,9 +406,17 @@ export const OnboardingPage: React.FC = () => {
           </p>
         </div>
 
+        {error && (
+          <div className="p-3 bg-rose-950/40 border border-rose-800 rounded-xl text-xs text-rose-300">
+            {error}
+          </div>
+        )}
+
         <div className="space-y-4 text-xs">
           <div className="space-y-2">
-            <label className="text-slate-300 font-semibold block">What does your company regularly buy?</label>
+            <label className="text-slate-300 font-semibold block">
+              What does your company regularly procure? <span className="text-slate-600">(optional)</span>
+            </label>
             <div className="flex flex-wrap gap-2">
               {availableCategories.map((cat) => {
                 const selected = categories.includes(cat);
@@ -341,9 +440,12 @@ export const OnboardingPage: React.FC = () => {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-slate-300 font-semibold block mb-1">Primary Procurement Location</label>
+              <label className="text-slate-300 font-semibold block mb-1">
+                Primary Delivery Location <span className="text-rose-400">*</span>
+              </label>
               <input
                 type="text"
+                required
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 placeholder="Delhi, India"
@@ -358,8 +460,8 @@ export const OnboardingPage: React.FC = () => {
                 onChange={(e) => setCurrency(e.target.value)}
                 className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-purple-500/50"
               >
-                <option value="USD">USD ($)</option>
                 <option value="INR">INR (₹)</option>
+                <option value="USD">USD ($)</option>
                 <option value="EUR">EUR (€)</option>
                 <option value="GBP">GBP (£)</option>
               </select>
@@ -367,20 +469,24 @@ export const OnboardingPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="text-slate-300 font-semibold block mb-1">Typical Monthly Procurement Budget</label>
+            <label className="text-slate-300 font-semibold block mb-1">
+              Typical Monthly Procurement Budget <span className="text-slate-600">(optional)</span>
+            </label>
             <input
               type="number"
               value={monthlySpend}
               onChange={(e) => setMonthlySpend(e.target.value)}
+              placeholder="e.g. 500000"
               className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-purple-500/50 font-mono"
             />
           </div>
 
           <button
             onClick={handleFinish}
-            className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-purple-950/50 transition hover:scale-102 mt-4"
+            disabled={loading}
+            className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-purple-950/50 transition disabled:opacity-50 mt-4"
           >
-            <span>Complete Setup & Open Workspace</span>
+            <span>{loading ? 'Saving...' : 'Complete Setup & Open Workspace'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>

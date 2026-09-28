@@ -26,21 +26,14 @@ export const ApprovalsPage: React.FC = () => {
     try {
       const res = await api.get('/approvals');
       setApprovals(res.data.approvals || []);
-    } catch (err) {
-      setApprovals([
-        {
-          _id: 'app_1048',
-          title: 'Purchase Authorization: 50x Ergonomic Office Chairs',
-          vendorName: 'ErgoWorks Global',
-          subtotal: 9840,
-          estimatedSavings: 2160,
-          savingsPct: 18.0,
-          deliveryDays: 18,
-          justification: 'ErgoWorks recommended with 5-year commercial warranty, 18-day delivery window, and $2,160 under authorized $12,000 budget.',
-          status: 'pending',
-          procurementId: { referenceNumber: 'PR-1048', title: '50x Ergonomic Office Chairs' },
-        },
-      ]);
+    } catch (err: any) {
+      if (err.response?.status === 401) {
+        localStorage.removeItem('procureai_token');
+        localStorage.removeItem('procureai_user');
+        navigate('/login');
+      } else {
+        setApprovals([]);
+      }
     }
   };
 
@@ -56,11 +49,7 @@ export const ApprovalsPage: React.FC = () => {
       setActiveModalApproval(null);
       navigate('/purchase-orders');
     } catch (err) {
-      setApprovals((prev) =>
-        prev.map((a) => (a._id === id ? { ...a, status: 'approved' } : a))
-      );
-      setActiveModalApproval(null);
-      navigate('/purchase-orders');
+      console.error('Failed to approve:', err);
     } finally {
       setProcessingId(null);
     }
@@ -73,10 +62,7 @@ export const ApprovalsPage: React.FC = () => {
       await fetchApprovals();
       setActiveModalApproval(null);
     } catch (err) {
-      setApprovals((prev) =>
-        prev.map((a) => (a._id === id ? { ...a, status: 'rejected' } : a))
-      );
-      setActiveModalApproval(null);
+      console.error('Failed to reject:', err);
     } finally {
       setProcessingId(null);
     }

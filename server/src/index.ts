@@ -6,7 +6,6 @@ import mongoose from 'mongoose';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import routes from './routes/index.js';
-import { seedInitialDemoData } from './scripts/seed.js';
 
 dotenv.config();
 
@@ -44,7 +43,7 @@ app.use('/api', limiter);
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'healthy',
-    service: 'ProcureAI Autonomous Backend',
+    service: 'ProcureAI Backend',
     timestamp: new Date().toISOString(),
   });
 });
@@ -66,16 +65,10 @@ async function startServer() {
 
   try {
     await mongoose.connect(mongoUri);
-    console.log(`Connected to MongoDB at ${mongoUri}`);
-
-    // Automatically seed demo data if fresh DB
-    try {
-      await seedInitialDemoData();
-    } catch (seedErr) {
-      console.warn('Auto-seed notice:', seedErr);
-    }
+    console.log(`✅ Connected to MongoDB at ${mongoUri}`);
   } catch (dbErr) {
-    console.warn(`MongoDB Connection Notice: Running in disconnected mode or memory state. ${dbErr}`);
+    console.error(`❌ MongoDB connection failed:`, dbErr);
+    process.exit(1);
   }
 
   app.listen(PORT, () => {

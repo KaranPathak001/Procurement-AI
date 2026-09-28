@@ -107,7 +107,7 @@ export class QuoteAnalysisAgent {
         aiPros: pros,
         aiCons: cons,
         negotiationPotentialPct: negPotential,
-        negotiationStatus: 'not_started',
+        negotiationStatus: 'not_started' as const,
       };
     }).sort((a, b) => b.overallScore - a.overallScore);
   }

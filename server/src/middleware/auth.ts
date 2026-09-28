@@ -6,7 +6,8 @@ export interface AuthUserPayload {
   email: string;
   name: string;
   role: string;
-  companyId: string;
+  companyId?: string;
+  vendorId?: string;
 }
 
 declare global {
@@ -36,3 +37,20 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
     return;
   }
 };
+
+export const requireRole = (allowedRoles: string[]) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({ error: 'Authentication required' });
+      return;
+    }
+
+    if (!allowedRoles.includes(req.user.role)) {
+      res.status(403).json({ error: `Forbidden: requires one of roles [${allowedRoles.join(', ')}]` });
+      return;
+    }
+
+    next();
+  };
+};
+

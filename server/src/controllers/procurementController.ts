@@ -138,7 +138,7 @@ export class ProcurementController {
     try {
       const companyId = req.user?.companyId;
       const userId = req.user?.userId;
-      const { id } = req.params;
+      const id = req.params.id as string;
 
       const result = await ProcurementOrchestrator.runFullProcurementCycle(id, companyId!, userId!);
       return res.json({ message: 'Agent cycle executed successfully', result });

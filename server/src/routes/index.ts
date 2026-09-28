@@ -2,52 +2,61 @@ import { Router } from 'express';
 import { AuthController } from '../controllers/authController.js';
 import { ProcurementController } from '../controllers/procurementController.js';
 import { WorkflowController } from '../controllers/workflowController.js';
-import { authenticateToken } from '../middleware/auth.js';
-import { seedInitialDemoData } from '../scripts/seed.js';
+import { VendorController } from '../controllers/vendorController.js';
+import { authenticateToken, requireRole } from '../middleware/auth.js';
 
 const router = Router();
 
-// Public Auth routes
+// ─── Public Routes ───────────────────────────────────────────────────────────
 router.post('/auth/register', AuthController.register);
 router.post('/auth/login', AuthController.login);
-router.post('/demo/seed', async (req, res) => {
-  try {
-    const result = await seedInitialDemoData();
-    res.json({ message: 'Demo environment successfully initialized', result });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
-// Protected routes
+// Public vendor directory (buyers can browse without login)
+router.get('/vendors', VendorController.listPublicVendors);
+router.get('/vendors/:id', VendorController.getVendorPublicProfile);
+
+// ─── All routes below require authentication ─────────────────────────────────
 router.use(authenticateToken);
 
-// User & Onboarding
+// User profile & onboarding
 router.get('/me', AuthController.me);
 router.post('/onboarding', AuthController.updateOnboarding);
 
-// Procurements
-router.post('/procurements/parse', ProcurementController.parseRequirement);
-router.get('/procurements', ProcurementController.listProcurements);
-router.post('/procurements', ProcurementController.createProcurement);
-router.get('/procurements/:id', ProcurementController.getProcurementById);
-router.post('/procurements/:id/run-agent', ProcurementController.runAgent);
-router.get('/procurements/:id/events', ProcurementController.getEvents);
+// ─── Buyer-only Routes ───────────────────────────────────────────────────────
+router.post('/procurements/parse', requireRole(['buyer']), ProcurementController.parseRequirement);
+router.get('/procurements', requireRole(['buyer']), ProcurementController.listProcurements);
+router.post('/procurements', requireRole(['buyer']), ProcurementController.createProcurement);
+router.get('/procurements/:id', requireRole(['buyer']), ProcurementController.getProcurementById);
+router.post('/procurements/:id/run-agent', requireRole(['buyer']), ProcurementController.runAgent);
+router.get('/procurements/:id/events', requireRole(['buyer']), ProcurementController.getEvents);
 
-// Approvals & Purchase Orders
-router.get('/approvals', WorkflowController.listApprovals);
-router.post('/approvals/:id/approve', WorkflowController.approveRequest);
-router.post('/approvals/:id/reject', WorkflowController.rejectRequest);
+// Approvals & Purchase Orders (buyers only)
+router.get('/approvals', requireRole(['buyer']), WorkflowController.listApprovals);
+router.post('/approvals/:id/approve', requireRole(['buyer']), WorkflowController.approveRequest);
+router.post('/approvals/:id/reject', requireRole(['buyer']), WorkflowController.rejectRequest);
+router.get('/purchase-orders', requireRole(['buyer']), WorkflowController.listPurchaseOrders);
 
-router.get('/purchase-orders', WorkflowController.listPurchaseOrders);
+// Analytics & Notifications (buyer dashboard)
+router.get('/analytics/dashboard', requireRole(['buyer']), WorkflowController.getDashboardMetrics);
+router.get('/notifications', authenticateToken, WorkflowController.getNotifications);
 
-// Vendors & Directory
-router.get('/vendors', WorkflowController.listVendors);
-router.get('/vendors/:id', WorkflowController.getVendorById);
+// AI Assistant (buyers only for now)
+router.post('/ai/chat', requireRole(['buyer']), WorkflowController.chatAssistant);
 
-// Assistant & Analytics & Notifications
-router.post('/ai/chat', WorkflowController.chatAssistant);
-router.get('/analytics/dashboard', WorkflowController.getDashboardMetrics);
-router.get('/notifications', WorkflowController.getNotifications);
+// ─── Vendor-only Routes ──────────────────────────────────────────────────────
+router.get('/vendor/profile', requireRole(['vendor']), VendorController.getMyProfile);
+router.patch('/vendor/profile', requireRole(['vendor']), VendorController.updateProfile);
+
+router.get('/vendor/products', requireRole(['vendor']), VendorController.listMyProducts);
+router.post('/vendor/products', requireRole(['vendor']), VendorController.createProduct);
+router.patch('/vendor/products/:productId', requireRole(['vendor']), VendorController.updateProduct);
+router.delete('/vendor/products/:productId', requireRole(['vendor']), VendorController.deleteProduct);
+
+router.get('/vendor/rfqs', requireRole(['vendor']), VendorController.listMyRFQs);
+router.post('/vendor/rfqs/:rfqId/quote', requireRole(['vendor']), VendorController.submitQuote);
+
+router.get('/vendor/quotes', requireRole(['vendor']), VendorController.listMyQuotes);
+router.get('/vendor/orders', requireRole(['vendor']), VendorController.listMyOrders);
+router.get('/vendor/dashboard', requireRole(['vendor']), VendorController.getDashboard);
 
 export default router;

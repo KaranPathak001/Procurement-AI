@@ -67,12 +67,15 @@ export const NewProcurementPage: React.FC = () => {
     }
   };
 
+  const [submitError, setSubmitError] = useState('');
+
   const handleConfirmAndLaunch = async () => {
     setIsSubmitting(true);
+    setSubmitError('');
     try {
       const payload = {
         prompt,
-        title: title || parsedData?.title || '50x Ergonomic Office Chairs',
+        title: title || parsedData?.title || 'Procurement Request',
         category,
         budget,
         currency,
@@ -90,7 +93,7 @@ export const NewProcurementPage: React.FC = () => {
         navigate('/procurements');
       }
     } catch (err: any) {
-      navigate('/procurements/demo_1048');
+      setSubmitError(err.response?.data?.error || 'Failed to create procurement request. Please verify fields and try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -296,6 +299,12 @@ export const NewProcurementPage: React.FC = () => {
                 <div className="p-3 bg-purple-950/20 border border-purple-900/40 rounded-xl text-[11px] text-purple-200 leading-relaxed">
                   The automated cycle will scan suppliers, dispatch RFQs, analyze pricing quotes, and negotiate volume discounts for your approval.
                 </div>
+
+                {submitError && (
+                  <div className="p-3 bg-rose-950/30 border border-rose-800/40 rounded-xl text-xs text-rose-300">
+                    {submitError}
+                  </div>
+                )}
 
                 <button
                   onClick={handleConfirmAndLaunch}

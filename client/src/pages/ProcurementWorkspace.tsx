@@ -32,172 +32,26 @@ export const ProcurementWorkspacePage: React.FC = () => {
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'timeline' | 'quotes' | 'negotiation'>('timeline');
 
+  const [errorMessage, setErrorMessage] = useState('');
+
   const fetchProcurementData = async () => {
+    if (!id) return;
     try {
-      const res = await api.get(`/procurements/${id || 'demo_1048'}`);
+      const res = await api.get(`/procurements/${id}`);
       setProcurement(res.data.procurement);
       setQuotes(res.data.quotes || []);
       setEvents(res.data.events || []);
       setNegotiations(res.data.negotiations || []);
       setApproval(res.data.approval);
       setPurchaseOrder(res.data.purchaseOrder);
-    } catch (err) {
-      setProcurement({
-        _id: 'demo_1048',
-        referenceNumber: 'PR-1048',
-        title: '50x Ergonomic Office Chairs',
-        category: 'Ergonomic Office Furniture',
-        budget: 12000,
-        currency: 'USD',
-        quantity: 50,
-        deliveryLocation: 'Delhi, India',
-        requiredByDate: '30 days',
-        status: 'pending_approval',
-        assignedAgentStage: 'Ready for Human Approval',
-        agentProgressPct: 100,
-        specs: {
-          keyRequirements: [
-            'Adjustable Ergonomic Lumbar Support',
-            'Gas-lift Height Adjustability & 3D Armrests',
-            'Breathable High-Durability Mesh Back',
-            'Minimum 3-5 Year Commercial Warranty',
-          ],
-        },
-        aiRecommendation: {
-          vendorName: 'ErgoWorks Global',
-          finalPrice: 9840,
-          savingsAmount: 2160,
-          savingsPct: 18.0,
-          summary: 'ErgoWorks is the optimal choice balancing superior 5-year warranty, proven SLA compliance, and $2,160 in direct budget savings.',
-          reasoning: [
-            'Strong vendor reliability (96%) with 24 previous flawless orders',
-            '5-year commercial replacement warranty',
-            'Delivery in 18 days (comfortably ahead of 30-day requirement)',
-            'Autonomous negotiation yielded $860 extra reduction',
-          ],
-        },
-      });
-
-      setQuotes([
-        {
-          _id: 'q1',
-          vendorName: 'ErgoWorks Global',
-          unitPrice: 196.8,
-          originalPrice: 10700,
-          totalPrice: 9840,
-          leadTimeDays: 18,
-          warrantyYears: 5,
-          overallScore: 94,
-          priceScore: 92,
-          reliabilityScore: 96,
-          deliveryScore: 93,
-          complianceScore: 98,
-          aiPros: [
-            'Strong vendor reliability (96%) with 24 past verified deliveries',
-            'Unrivaled 5-year commercial warranty and free replacement on gas-springs',
-            'Delivery in 18 days — well inside your 30-day threshold',
-            'Negotiated an 8% volume incentive discount from starting $10,700 quote',
-          ],
-          aiCons: ['Slightly higher raw base price than lowest bidder FurniTech ($9,420)'],
-          status: 'selected',
-        },
-        {
-          _id: 'q2',
-          vendorName: 'OfficePro Direct Solutions',
-          unitPrice: 205,
-          originalPrice: 11000,
-          totalPrice: 10250,
-          leadTimeDays: 14,
-          warrantyYears: 3,
-          overallScore: 91,
-          priceScore: 86,
-          reliabilityScore: 92,
-          deliveryScore: 98,
-          complianceScore: 90,
-          aiPros: ['Fastest logistics (14 days guaranteed delivery)', 'Includes complimentary assembly team'],
-          aiCons: ['Standard 3-year warranty', 'Total price is $410 higher than ErgoWorks'],
-          status: 'active',
-        },
-        {
-          _id: 'q3',
-          vendorName: 'FurniTech Commercial Systems',
-          unitPrice: 188.4,
-          originalPrice: 10200,
-          totalPrice: 9420,
-          leadTimeDays: 27,
-          warrantyYears: 2,
-          overallScore: 86,
-          priceScore: 96,
-          reliabilityScore: 88,
-          deliveryScore: 74,
-          complianceScore: 82,
-          aiPros: ['Lowest upfront quotation ($9,420 total)', 'High raw price competitiveness'],
-          aiCons: ['27 days delivery is close to 30-day deadline', 'Base warranty limited to 2 years'],
-          status: 'active',
-        },
-      ]);
-
-      setEvents([
-        {
-          stage: 'Requirement Parser',
-          title: 'Requirement Understood & Structured',
-          detail: 'Parsed 50 ergonomic chairs with lumbar support and 30-day delivery deadline at $12,000 budget ceiling.',
-          timestamp: '09:41',
-          iconType: 'CheckCircle2',
-        },
-        {
-          stage: 'Supplier Discovery',
-          title: 'Found 14 Relevant Enterprise Suppliers',
-          detail: 'Filtered qualified suppliers in Delhi NCR and global hubs matching BIFMA commercial durability standards.',
-          timestamp: '09:42',
-          iconType: 'Search',
-        },
-        {
-          stage: 'RFQ Dispatch',
-          title: 'Sent RFQ Packages to 14 Suppliers',
-          detail: 'Automated RFQ packages with CAD specs, warranty criteria, and mandatory delivery windows sent via vendor portals.',
-          timestamp: '09:43',
-          iconType: 'Send',
-        },
-        {
-          stage: 'Quote Matrix',
-          title: 'Received & Evaluated 6 Formal Quotations',
-          detail: 'Ingested raw quote documents and constructed weighted decision trade-off matrix.',
-          timestamp: '09:48',
-          iconType: 'GitCompare',
-        },
-        {
-          stage: 'Negotiation Engine',
-          title: 'Identified 8% Volume Negotiation Opportunity',
-          detail: 'Triggered tactical bulk volume discount request with ErgoWorks Global targeting immediate PO release.',
-          timestamp: '09:49',
-          iconType: 'TrendingDown',
-        },
-        {
-          stage: 'Supplier Intelligence',
-          title: 'ErgoWorks Conceded to $9,840 (8.04% Discount)',
-          detail: 'Vendor agreed to adjust quote from $10,700 to $9,840 while maintaining the 5-year warranty covenant.',
-          timestamp: '09:50',
-          iconType: 'CheckCircle2',
-        },
-        {
-          stage: 'Recommendation Synthesis',
-          title: 'Recommendation Synthesized: ErgoWorks Global',
-          detail: 'Saved $2,160 (18.0%) against $12,000 budget. Prepared purchase authorization for human sign-off.',
-          timestamp: '09:51',
-          iconType: 'BadgeCheck',
-        },
-      ]);
-
-      setApproval({
-        _id: 'app_1048',
-        title: 'Purchase Authorization: 50x Ergonomic Office Chairs',
-        subtotal: 9840,
-        estimatedSavings: 2160,
-        savingsPct: 18.0,
-        deliveryDays: 18,
-        status: 'pending',
-      });
+    } catch (err: any) {
+      if (err.response?.status === 401) {
+        localStorage.removeItem('procureai_token');
+        localStorage.removeItem('procureai_user');
+        navigate('/login');
+      } else {
+        setErrorMessage(err.response?.data?.error || 'Procurement request not found');
+      }
     } finally {
       setLoading(false);
     }
@@ -244,11 +98,28 @@ export const ProcurementWorkspacePage: React.FC = () => {
     }
   };
 
-  if (loading || !procurement) {
+  if (loading) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-3">
         <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
         <span className="text-xs text-slate-400 font-mono">Loading workspace...</span>
+      </div>
+    );
+  }
+
+  if (errorMessage || !procurement) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4 text-center px-4">
+        <div className="p-4 rounded-2xl bg-rose-950/20 border border-rose-800/40 text-rose-300 max-w-md">
+          <p className="font-semibold text-sm mb-1">Procurement Not Found</p>
+          <p className="text-xs text-slate-400">{errorMessage || 'The requested procurement could not be retrieved.'}</p>
+        </div>
+        <button
+          onClick={() => navigate('/procurements')}
+          className="text-xs text-purple-400 hover:text-purple-300 font-medium"
+        >
+          ← Return to Procurements
+        </button>
       </div>
     );
   }

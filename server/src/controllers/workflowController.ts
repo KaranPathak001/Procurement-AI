@@ -160,14 +160,10 @@ export class WorkflowController {
     }
   }
 
-  // Vendors
+  // Vendors (now handled by VendorController for public directory)
   static async listVendors(req: Request, res: Response) {
     try {
-      const companyId = req.user?.companyId;
-      const vendors = await Vendor.find({
-        $or: [{ companyId: new mongoose.Types.ObjectId(companyId) }, { isGlobalVendor: true }],
-      }).sort({ reliabilityScore: -1 });
-
+      const vendors = await Vendor.find({}).sort({ reliabilityScore: -1 });
       return res.json({ vendors });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
@@ -224,10 +220,6 @@ export class WorkflowController {
         } else {
           reply = 'I do not have enough historical order data to compute savings benchmarks yet.';
         }
-      } else if (q.includes('why') && (q.includes('ergoworks') || q.includes('recommend'))) {
-        reply = 'ProcureAI recommended ErgoWorks because they achieved the highest multi-criteria composite score (94/100):\n• $9,840 quote delivers $2,160 (18%) savings under your $12,000 budget\n• Unrivaled 5-year commercial warranty (vs 2-3 years for competitors)\n• 96% supplier reliability score and guaranteed 18-day delivery window.';
-      } else if (q.includes('cheapest quote') || q.includes('pr-1048') || q.includes('lowest price')) {
-        reply = 'For PR-1048, FurniTech Commercial Systems provided the lowest upfront raw quote at $9,420. However, their lead time is 27 days (dangerously close to the 30-day constraint) with only a 2-year warranty, which is why ErgoWorks ($9,840 with 5yr warranty) was prioritized.';
       } else if (q.includes('create') || q.includes('source') || q.includes('buy') || q.includes('need')) {
         reply = `I can initiate a new autonomous sourcing cycle for you right away. Click below to confirm requirement parameters.`;
         structuredAction = { type: 'PROMPT_PREFILL', prompt: query };
@@ -246,22 +238,28 @@ export class WorkflowController {
     try {
       const companyId = req.user?.companyId;
 
-      const [activeRequestsCount, pendingApprovalsCount, pos, procurements] = await Promise.all([
+      const [activeRequestsCount, pendingApprovalsCount, pos, procurements, vendorCount] = await Promise.all([
         ProcurementRequest.countDocuments({ companyId, status: { $ne: 'fulfilled' } }),
         Approval.countDocuments({ companyId, status: 'pending' }),
         PurchaseOrder.find({ companyId }),
         ProcurementRequest.find({ companyId }).sort({ createdAt: -1 }).limit(6),
+        Vendor.countDocuments({}),
       ]);
 
-      const totalVendorSpend = pos.reduce((sum, p) => sum + (p.totalAmount || 0), 0) + 84200;
-      const potentialSavings = 18420;
+      const totalVendorSpend = pos.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+      const totalSavingsFromPOs = pos.reduce((sum, p) => {
+        const estimatedOriginal = (p.totalAmount || 0) * 1.12;
+        return sum + (estimatedOriginal - (p.totalAmount || 0));
+      }, 0);
 
       return res.json({
         metrics: {
-          activeRequests: activeRequestsCount || 4,
-          potentialSavings,
+          activeRequests: activeRequestsCount,
+          potentialSavings: Math.round(totalSavingsFromPOs),
           vendorSpend: totalVendorSpend,
           pendingApprovals: pendingApprovalsCount,
+          totalVendors: vendorCount,
+          totalOrders: pos.length,
         },
         recentProcurements: procurements,
       });

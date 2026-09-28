@@ -4,6 +4,7 @@ import { AppLayout } from './components/layout/AppLayout';
 import { LandingPage } from './pages/Landing';
 import { LoginPage, RegisterPage, OnboardingPage } from './pages/Auth';
 import { DashboardPage } from './pages/Dashboard';
+import { VendorDashboardPage } from './pages/VendorDashboard';
 import { NewProcurementPage } from './pages/NewProcurement';
 import { ProcurementWorkspacePage } from './pages/ProcurementWorkspace';
 import { ApprovalsPage } from './pages/Approvals';
@@ -11,6 +12,23 @@ import { PurchaseOrdersPage } from './pages/PurchaseOrders';
 import { VendorsPage } from './pages/Vendors';
 import { AnalyticsPage } from './pages/Analytics';
 import { SettingsPage } from './pages/Settings';
+
+// Route guard: redirect to /login if not authenticated
+const PrivateRoute: React.FC<{ element: React.ReactNode }> = ({ element }) => {
+  const token = localStorage.getItem('procureai_token');
+  return token ? <>{element}</> : <Navigate to="/login" replace />;
+};
+
+// Route guard: redirect to /vendor/dashboard if vendor, /dashboard if buyer
+const AuthRedirect: React.FC = () => {
+  const token = localStorage.getItem('procureai_token');
+  if (!token) return <Navigate to="/login" replace />;
+  const userJson = localStorage.getItem('procureai_user');
+  const user = userJson ? JSON.parse(userJson) : {};
+  return user.role === 'vendor'
+    ? <Navigate to="/vendor/dashboard" replace />
+    : <Navigate to="/dashboard" replace />;
+};
 
 export const App: React.FC = () => {
   return (
@@ -22,82 +40,78 @@ export const App: React.FC = () => {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/onboarding" element={<OnboardingPage />} />
 
-        {/* Authenticated Workspace App Routes */}
+        {/* Auto-redirect logged-in users to correct dashboard */}
+        <Route path="/app" element={<AuthRedirect />} />
+
+        {/* ── Buyer Routes ─────────────────────────────────────── */}
         <Route
           path="/dashboard"
           element={
-            <AppLayout>
-              <DashboardPage />
-            </AppLayout>
+            <PrivateRoute element={<AppLayout><DashboardPage /></AppLayout>} />
           }
         />
         <Route
           path="/new-procurement"
           element={
-            <AppLayout>
-              <NewProcurementPage />
-            </AppLayout>
+            <PrivateRoute element={<AppLayout><NewProcurementPage /></AppLayout>} />
           }
         />
         <Route
           path="/procurements"
           element={
-            <AppLayout>
-              <DashboardPage />
-            </AppLayout>
+            <PrivateRoute element={<AppLayout><DashboardPage /></AppLayout>} />
           }
         />
         <Route
           path="/procurements/:id"
           element={
-            <AppLayout>
-              <ProcurementWorkspacePage />
-            </AppLayout>
+            <PrivateRoute element={<AppLayout><ProcurementWorkspacePage /></AppLayout>} />
           }
         />
         <Route
           path="/approvals"
           element={
-            <AppLayout>
-              <ApprovalsPage />
-            </AppLayout>
+            <PrivateRoute element={<AppLayout><ApprovalsPage /></AppLayout>} />
           }
         />
         <Route
           path="/purchase-orders"
           element={
-            <AppLayout>
-              <PurchaseOrdersPage />
-            </AppLayout>
+            <PrivateRoute element={<AppLayout><PurchaseOrdersPage /></AppLayout>} />
           }
         />
         <Route
           path="/vendors"
           element={
-            <AppLayout>
-              <VendorsPage />
-            </AppLayout>
+            <PrivateRoute element={<AppLayout><VendorsPage /></AppLayout>} />
           }
         />
         <Route
           path="/analytics"
           element={
-            <AppLayout>
-              <AnalyticsPage />
-            </AppLayout>
+            <PrivateRoute element={<AppLayout><AnalyticsPage /></AppLayout>} />
           }
         />
         <Route
           path="/settings"
           element={
-            <AppLayout>
-              <SettingsPage />
-            </AppLayout>
+            <PrivateRoute element={<AppLayout><SettingsPage /></AppLayout>} />
           }
         />
 
-        {/* Catch-all */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        {/* ── Vendor Routes ─────────────────────────────────────── */}
+        <Route
+          path="/vendor/dashboard"
+          element={
+            <PrivateRoute element={<AppLayout><VendorDashboardPage /></AppLayout>} />
+          }
+        />
+
+        {/* Catch-all: authenticated users go to their dashboard, others to login */}
+        <Route
+          path="*"
+          element={<AuthRedirect />}
+        />
       </Routes>
     </BrowserRouter>
   );

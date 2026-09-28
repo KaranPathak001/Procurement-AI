@@ -1,11 +1,14 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
+export type UserRole = 'buyer' | 'vendor' | 'admin' | 'procurement_lead' | 'finance_approver';
+
 export interface IUser extends Document {
   email: string;
   passwordHash: string;
   name: string;
-  role: 'admin' | 'procurement_lead' | 'buyer' | 'finance_approver';
-  companyId: mongoose.Types.ObjectId;
+  role: UserRole;
+  companyId?: mongoose.Types.ObjectId;
+  vendorId?: mongoose.Types.ObjectId;
   department?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -18,10 +21,11 @@ const UserSchema = new Schema<IUser>(
     name: { type: String, required: true },
     role: {
       type: String,
-      enum: ['admin', 'procurement_lead', 'buyer', 'finance_approver'],
-      default: 'procurement_lead',
+      enum: ['buyer', 'vendor', 'admin', 'procurement_lead', 'finance_approver'],
+      default: 'buyer',
     },
-    companyId: { type: Schema.Types.ObjectId, ref: 'Company', required: true },
+    companyId: { type: Schema.Types.ObjectId, ref: 'Company' },
+    vendorId: { type: Schema.Types.ObjectId, ref: 'Vendor' },
     department: { type: String, default: 'Procurement' },
   },
   { timestamps: true }
@@ -75,6 +79,7 @@ export interface IVendorContact {
 
 export interface IVendor extends Document {
   name: string;
+  userId?: mongoose.Types.ObjectId;
   companyId?: mongoose.Types.ObjectId;
   isGlobalVendor: boolean;
   categories: string[];
@@ -83,6 +88,10 @@ export interface IVendor extends Document {
   averageDeliveryDays: number;
   pricingCompetitivenessScore: number;
   location: string;
+  description?: string;
+  website?: string;
+  phone?: string;
+  minOrderQuantity?: number;
   contacts: IVendorContact[];
   historicalSavingsPct: number;
   completedOrdersCount: number;
@@ -97,14 +106,19 @@ export interface IVendor extends Document {
 const VendorSchema = new Schema<IVendor>(
   {
     name: { type: String, required: true },
+    userId: { type: Schema.Types.ObjectId, ref: 'User' },
     companyId: { type: Schema.Types.ObjectId, ref: 'Company' },
-    isGlobalVendor: { type: Boolean, default: true },
+    isGlobalVendor: { type: Boolean, default: false },
     categories: [{ type: String }],
     reliabilityScore: { type: Number, min: 0, max: 100, default: 90 },
     qualityScore: { type: Number, min: 0, max: 100, default: 92 },
     averageDeliveryDays: { type: Number, default: 14 },
     pricingCompetitivenessScore: { type: Number, min: 0, max: 100, default: 88 },
     location: { type: String, default: 'Global / Domestic' },
+    description: { type: String, default: '' },
+    website: { type: String, default: '' },
+    phone: { type: String, default: '' },
+    minOrderQuantity: { type: Number, default: 1 },
     contacts: [
       {
         name: { type: String, required: true },
@@ -114,14 +128,14 @@ const VendorSchema = new Schema<IVendor>(
       },
     ],
     historicalSavingsPct: { type: Number, default: 8.5 },
-    completedOrdersCount: { type: Number, default: 10 },
-    totalSpendAmount: { type: Number, default: 50000 },
+    completedOrdersCount: { type: Number, default: 0 },
+    totalSpendAmount: { type: Number, default: 0 },
     tags: [{ type: String }],
     verifiedSupplier: { type: Boolean, default: true },
     tier: {
       type: String,
       enum: ['tier_1_preferred', 'tier_2_qualified', 'tier_3_evaluated'],
-      default: 'tier_1_preferred',
+      default: 'tier_2_qualified',
     },
   },
   { timestamps: true }
@@ -561,3 +575,90 @@ const NotificationSchema = new Schema<INotification>(
 );
 
 export const Notification = mongoose.model<INotification>('Notification', NotificationSchema);
+
+export interface IProduct extends Document {
+  vendorId: mongoose.Types.ObjectId;
+  name: string;
+  description: string;
+  category: string;
+  unit: string;
+  basePrice: number;
+  currency: string;
+  minimumOrderQuantity: number;
+  deliveryDays: number;
+  warranty: string;
+  availability: 'in_stock' | 'made_to_order' | 'out_of_stock';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const ProductSchema = new Schema<IProduct>(
+  {
+    vendorId: { type: Schema.Types.ObjectId, ref: 'Vendor', required: true },
+    name: { type: String, required: true },
+    description: { type: String, default: '' },
+    category: { type: String, required: true },
+    unit: { type: String, default: 'unit' },
+    basePrice: { type: Number, required: true },
+    currency: { type: String, default: 'INR' },
+    minimumOrderQuantity: { type: Number, default: 1 },
+    deliveryDays: { type: Number, default: 14 },
+    warranty: { type: String, default: '1 year standard' },
+    availability: {
+      type: String,
+      enum: ['in_stock', 'made_to_order', 'out_of_stock'],
+      default: 'in_stock',
+    },
+  },
+  { timestamps: true }
+);
+
+export const Product = mongoose.model<IProduct>('Product', ProductSchema);
+
+export interface IRFQ extends Document {
+  procurementRequestId: mongoose.Types.ObjectId;
+  companyId: mongoose.Types.ObjectId;
+  vendorId: mongoose.Types.ObjectId;
+  title: string;
+  category: string;
+  quantity: number;
+  budget: number;
+  currency: string;
+  deliveryLocation: string;
+  requiredByDate: string;
+  specifications: string[];
+  status: 'sent' | 'viewed' | 'quoted' | 'declined' | 'closed';
+  sentAt: Date;
+  expiresAt: Date;
+  quoteId?: mongoose.Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const RFQSchema = new Schema<IRFQ>(
+  {
+    procurementRequestId: { type: Schema.Types.ObjectId, ref: 'ProcurementRequest', required: true },
+    companyId: { type: Schema.Types.ObjectId, ref: 'Company', required: true },
+    vendorId: { type: Schema.Types.ObjectId, ref: 'Vendor', required: true },
+    title: { type: String, required: true },
+    category: { type: String, default: 'General' },
+    quantity: { type: Number, required: true },
+    budget: { type: Number, required: true },
+    currency: { type: String, default: 'INR' },
+    deliveryLocation: { type: String, default: '' },
+    requiredByDate: { type: String, default: '' },
+    specifications: [{ type: String }],
+    status: {
+      type: String,
+      enum: ['sent', 'viewed', 'quoted', 'declined', 'closed'],
+      default: 'sent',
+    },
+    sentAt: { type: Date, default: Date.now },
+    expiresAt: { type: Date, default: () => new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) },
+    quoteId: { type: Schema.Types.ObjectId, ref: 'Quote' },
+  },
+  { timestamps: true }
+);
+
+export const RFQ = mongoose.model<IRFQ>('RFQ', RFQSchema);
+

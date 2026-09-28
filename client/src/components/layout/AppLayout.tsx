@@ -33,7 +33,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const userJson = localStorage.getItem('procureai_user');
-  const user = userJson ? JSON.parse(userJson) : { name: 'Karan Patel', companyName: 'Acme Technologies' };
+  const user = userJson ? JSON.parse(userJson) : {};
+  const isVendor = user.role === 'vendor';
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -51,19 +52,37 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       .then((res) => {
         if (res.data?.notifications) {
           setNotifications(res.data.notifications);
+          setUnreadCount(res.data.notifications.length);
         }
       })
       .catch(() => {});
   }, [location.pathname]);
 
-  const navItems = [
+  interface NavItem {
+    label: string;
+    path: string;
+    icon: React.ComponentType<{ className?: string }>;
+    badge?: string;
+  }
+
+  const buyerNavItems: NavItem[] = [
     { label: 'Overview', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Procurements', path: '/procurements', icon: ShoppingBag },
     { label: 'Vendors', path: '/vendors', icon: Building2 },
-    { label: 'Approvals', path: '/approvals', icon: BadgeCheck, badge: '1' },
+    { label: 'Approvals', path: '/approvals', icon: BadgeCheck },
     { label: 'Purchase Orders', path: '/purchase-orders', icon: ClipboardList },
     { label: 'Analytics', path: '/analytics', icon: BarChart3 },
   ];
+
+  const vendorNavItems: NavItem[] = [
+    { label: 'Overview', path: '/vendor/dashboard', icon: LayoutDashboard },
+    { label: 'Products', path: '/vendor/products', icon: ShoppingBag },
+    { label: 'RFQs', path: '/vendor/rfqs', icon: ClipboardList },
+    { label: 'Quotes', path: '/vendor/quotes', icon: BadgeCheck },
+    { label: 'Orders', path: '/vendor/orders', icon: Building2 },
+  ];
+
+  const navItems = isVendor ? vendorNavItems : buyerNavItems;
 
   const handleLogout = () => {
     localStorage.removeItem('procureai_token');
@@ -86,9 +105,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
           <div className="hidden md:flex items-center text-[11px] text-slate-400 bg-white/[0.03] border border-white/[0.06] px-2.5 py-0.5 rounded-full">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-2 animate-pulse" />
-            <span className="text-slate-300 font-medium">{user.companyName || 'Acme Technologies'}</span>
+            <span className="text-slate-300 font-medium">{user.companyName || user.name || (isVendor ? 'Vendor Portal' : 'Workspace')}</span>
             <span className="mx-1.5 text-slate-600">/</span>
-            <span className="text-slate-400 font-mono text-[10px]">ENGINE READY</span>
+            <span className="text-slate-400 font-mono text-[10px]">{isVendor ? 'SUPPLIER NODE' : 'ENGINE READY'}</span>
           </div>
         </div>
 
@@ -110,13 +129,15 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
         {/* Right Actions */}
         <div className="flex items-center space-x-2.5">
-          <Link
-            to="/new-procurement"
-            className="hidden sm:flex items-center space-x-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow-md shadow-purple-950/40 transition-all hover:scale-[1.02]"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>New Procurement</span>
-          </Link>
+          {!isVendor && (
+            <Link
+              to="/new-procurement"
+              className="hidden sm:flex items-center space-x-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow-md shadow-purple-950/40 transition-all hover:scale-[1.02]"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>New Procurement</span>
+            </Link>
+          )}
 
           {/* Notifications */}
           <div className="relative">
@@ -137,14 +158,18 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                   <span className="text-[10px] text-purple-400 font-mono">FEED</span>
                 </div>
                 <div className="py-2 space-y-2 max-h-64 overflow-y-auto text-xs">
-                  <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.05]">
-                    <p className="font-medium text-slate-200">6 Quotations Received</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">ErgoWorks and OfficePro quotes ingested for PR-1048.</p>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-purple-950/20 border border-purple-800/30">
-                    <p className="font-medium text-purple-200">Purchase Requires Approval</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">50x Ergonomic Chairs ($9,840) awaiting authorization.</p>
-                  </div>
+                  {notifications.length === 0 ? (
+                    <div className="py-6 text-center text-slate-500 text-xs">
+                      No notifications yet
+                    </div>
+                  ) : (
+                    notifications.map((n, idx) => (
+                      <div key={n._id || idx} className="p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.05]">
+                        <p className="font-medium text-slate-200">{n.title || n.message}</p>
+                        {n.detail && <p className="text-[11px] text-slate-400 mt-0.5">{n.detail}</p>}
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             )}
@@ -153,7 +178,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           {/* Profile & Logout */}
           <div className="flex items-center space-x-1.5 pl-2 border-l border-white/[0.08]">
             <div className="w-7 h-7 rounded-full bg-purple-950/80 border border-purple-500/40 flex items-center justify-center text-[11px] font-bold text-purple-300">
-              {user.name ? user.name.charAt(0) : 'K'}
+              {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
             </div>
             <button
               onClick={handleLogout}

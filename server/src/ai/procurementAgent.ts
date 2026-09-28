@@ -9,6 +9,7 @@ import {
   PurchaseOrder,
   AuditLog,
   Notification,
+  RFQ,
 } from '../models/index.js';
 import { RequirementParser } from './requirementParser.js';
 import { SupplierDiscoveryAgent } from './supplierAgent.js';
@@ -133,6 +134,24 @@ export class ProcurementOrchestrator {
           verifiedSupplier: true,
         });
       }
+
+      // Create RFQ record for the vendor so it appears in their vendor portal
+      await RFQ.create({
+        procurementRequestId: procurement._id,
+        companyId: new mongoose.Types.ObjectId(companyId),
+        vendorId: vendorDoc._id,
+        title: procurement.title,
+        category: procurement.category,
+        quantity: procurement.quantity,
+        budget: procurement.budget,
+        currency: procurement.currency,
+        deliveryLocation: procurement.deliveryLocation,
+        requiredByDate: procurement.requiredByDate,
+        specifications: procurement.specs.keyRequirements || [],
+        status: 'quoted',
+        sentAt: new Date(),
+        expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+      });
 
       const qDoc = await Quote.create({
         procurementId: procurement._id,

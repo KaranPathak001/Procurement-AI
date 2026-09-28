@@ -1,16 +1,32 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { User, Company, AuditLog } from '../models/index.js';
-import { RequirementParser } from '../ai/requirementParser.js';
+import { User, Company, Vendor, AuditLog } from '../models/index.js';
 
 export class AuthController {
   static async register(req: Request, res: Response) {
     try {
-      const { name, email, password, companyName, companySize, industry, location, currency } = req.body;
+      const {
+        name,
+        email,
+        password,
+        role = 'buyer', // 'buyer' | 'vendor'
+        companyName,
+        industry,
+        companySize,
+        location,
+        currency = 'INR',
+        // Vendor-specific fields
+        phone,
+        description,
+        website,
+        categories,
+        minOrderQuantity,
+        averageDeliveryDays,
+      } = req.body;
 
       if (!email || !password || !name || !companyName) {
-        return res.status(400).json({ error: 'Please provide all required registration fields.' });
+        return res.status(400).json({ error: 'Please provide name, email, password, and company / vendor name.' });
       }
 
       const existingUser = await User.findOne({ email: email.toLowerCase() });
@@ -18,63 +34,133 @@ export class AuthController {
         return res.status(400).json({ error: 'A user with this email address already exists.' });
       }
 
-      const company = await Company.create({
-        name: companyName,
-        size: companySize || '50-250',
-        industry: industry || 'Technology & Enterprise',
-        procurementLocation: location || 'Delhi, India / Global',
-        preferredCurrency: currency || 'USD',
-        procurementCategories: ['IT Hardware', 'Office Furniture', 'Packaging & Supplies', 'Cloud & Servers'],
-        monthlySpendBudget: 100000,
-      });
-
       const salt = await bcrypt.genSalt(10);
       const passwordHash = await bcrypt.hash(password, salt);
 
-      const user = await User.create({
-        name,
-        email: email.toLowerCase(),
-        passwordHash,
-        role: 'admin',
-        companyId: company._id,
-        department: 'Procurement Leadership',
-      });
-
       const secret = process.env.JWT_SECRET || 'super_secret_procureai_enterprise_jwt_key_2026_x89f';
-      const token = jwt.sign(
-        {
-          userId: user._id.toString(),
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          companyId: company._id.toString(),
-        },
-        secret,
-        { expiresIn: '7d' }
-      );
 
-      await AuditLog.create({
-        companyId: company._id,
-        userId: user._id,
-        userName: user.name,
-        action: 'USER_REGISTERED',
-        entityType: 'auth',
-        entityId: user._id.toString(),
-        details: { companyName: company.name },
-      });
+      if (role === 'vendor') {
+        // Register Vendor Account
+        const vendor = await Vendor.create({
+          name: companyName,
+          categories: categories && categories.length > 0 ? categories : [industry || 'Commercial Equipment'],
+          location: location || 'Delhi NCR Hub / India',
+          description: description || '',
+          website: website || '',
+          phone: phone || '',
+          minOrderQuantity: Number(minOrderQuantity) || 1,
+          averageDeliveryDays: Number(averageDeliveryDays) || 14,
+          reliabilityScore: 92,
+          qualityScore: 90,
+          pricingCompetitivenessScore: 88,
+          verifiedSupplier: true,
+          tier: 'tier_2_qualified',
+          contacts: [
+            {
+              name,
+              email: email.toLowerCase(),
+              phone: phone || '',
+              designation: 'Commercial Lead',
+            },
+          ],
+        });
 
-      return res.status(201).json({
-        message: 'Account created successfully',
-        token,
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
+        const user = await User.create({
+          name,
+          email: email.toLowerCase(),
+          passwordHash,
+          role: 'vendor',
+          vendorId: vendor._id,
+          department: 'Vendor Sales',
+        });
+
+        vendor.userId = user._id;
+        await vendor.save();
+
+        const token = jwt.sign(
+          {
+            userId: user._id.toString(),
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            vendorId: vendor._id.toString(),
+          },
+          secret,
+          { expiresIn: '7d' }
+        );
+
+        return res.status(201).json({
+          message: 'Vendor account created successfully',
+          token,
+          user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            role: 'vendor',
+            vendorId: vendor._id,
+            companyName: vendor.name,
+            vendor,
+          },
+        });
+      } else {
+        // Register Buyer / Company Account
+        const company = await Company.create({
+          name: companyName,
+          size: companySize || '50-250',
+          industry: industry || 'Technology & Enterprise',
+          procurementLocation: location || 'Delhi, India / Global',
+          preferredCurrency: currency || 'INR',
+          procurementCategories: categories && categories.length > 0
+            ? categories
+            : ['IT Hardware', 'Ergonomic Office Furniture', 'Packaging & Supplies'],
+          monthlySpendBudget: 1000000,
+        });
+
+        const user = await User.create({
+          name,
+          email: email.toLowerCase(),
+          passwordHash,
+          role: 'buyer',
           companyId: company._id,
-          companyName: company.name,
-        },
-      });
+          department: 'Procurement Leadership',
+        });
+
+        const token = jwt.sign(
+          {
+            userId: user._id.toString(),
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            companyId: company._id.toString(),
+          },
+          secret,
+          { expiresIn: '7d' }
+        );
+
+        await AuditLog.create({
+          companyId: company._id,
+          userId: user._id,
+          userName: user.name,
+          action: 'USER_REGISTERED',
+          entityType: 'auth',
+          entityId: user._id.toString(),
+          details: { companyName: company.name, role: 'buyer' },
+        });
+
+        return res.status(201).json({
+          message: 'Company account created successfully',
+          token,
+          user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            role: 'buyer',
+            companyId: company._id,
+            companyName: company.name,
+            company,
+          },
+        });
+      }
     } catch (err: any) {
       return res.status(500).json({ error: err.message || 'Server error during registration' });
     }
@@ -84,7 +170,7 @@ export class AuthController {
     try {
       const { email, password } = req.body;
       if (!email || !password) {
-        return res.status(400).json({ error: 'Please enter email and password' });
+        return res.status(400).json({ error: 'Please enter your email and password' });
       }
 
       const user = await User.findOne({ email: email.toLowerCase() });
@@ -97,30 +183,40 @@ export class AuthController {
         return res.status(401).json({ error: 'Invalid email or password' });
       }
 
-      const company = await Company.findById(user.companyId);
-
       const secret = process.env.JWT_SECRET || 'super_secret_procureai_enterprise_jwt_key_2026_x89f';
-      const token = jwt.sign(
-        {
-          userId: user._id.toString(),
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          companyId: user.companyId.toString(),
-        },
-        secret,
-        { expiresIn: '7d' }
-      );
 
-      await AuditLog.create({
-        companyId: user.companyId,
-        userId: user._id,
-        userName: user.name,
-        action: 'USER_LOGIN',
-        entityType: 'auth',
-        entityId: user._id.toString(),
-        details: { ip: req.ip },
-      });
+      let company = null;
+      let vendor = null;
+
+      if (user.role === 'vendor' || user.vendorId) {
+        vendor = await Vendor.findById(user.vendorId);
+      } else if (user.companyId) {
+        company = await Company.findById(user.companyId);
+      }
+
+      const tokenPayload: any = {
+        userId: user._id.toString(),
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      };
+
+      if (user.companyId) tokenPayload.companyId = user.companyId.toString();
+      if (user.vendorId) tokenPayload.vendorId = user.vendorId.toString();
+
+      const token = jwt.sign(tokenPayload, secret, { expiresIn: '7d' });
+
+      if (user.companyId) {
+        await AuditLog.create({
+          companyId: user.companyId,
+          userId: user._id,
+          userName: user.name,
+          action: 'USER_LOGIN',
+          entityType: 'auth',
+          entityId: user._id.toString(),
+          details: { ip: req.ip },
+        });
+      }
 
       return res.json({
         token,
@@ -130,7 +226,10 @@ export class AuthController {
           email: user.email,
           role: user.role,
           companyId: user.companyId,
-          companyName: company?.name || 'ProcureAI Enterprise',
+          vendorId: user.vendorId,
+          companyName: company?.name || vendor?.name || 'ProcureAI Enterprise',
+          company,
+          vendor,
         },
       });
     } catch (err: any) {
@@ -142,7 +241,16 @@ export class AuthController {
     try {
       const user = await User.findById(req.user?.userId).select('-passwordHash');
       if (!user) return res.status(404).json({ error: 'User not found' });
-      const company = await Company.findById(user.companyId);
+
+      let company = null;
+      let vendor = null;
+
+      if (user.role === 'vendor' || user.vendorId) {
+        vendor = await Vendor.findById(user.vendorId);
+      }
+      if (user.companyId) {
+        company = await Company.findById(user.companyId);
+      }
 
       return res.json({
         user: {
@@ -152,7 +260,10 @@ export class AuthController {
           role: user.role,
           department: user.department,
           companyId: user.companyId,
-          company: company,
+          vendorId: user.vendorId,
+          companyName: company?.name || vendor?.name || 'ProcureAI Account',
+          company,
+          vendor,
         },
       });
     } catch (err: any) {
@@ -162,7 +273,37 @@ export class AuthController {
 
   static async updateOnboarding(req: Request, res: Response) {
     try {
-      const { procurementCategories, monthlySpendBudget, preferredCurrency, procurementLocation } = req.body;
+      const {
+        procurementCategories,
+        monthlySpendBudget,
+        preferredCurrency,
+        procurementLocation,
+        // vendor updates
+        description,
+        website,
+        phone,
+        minOrderQuantity,
+        averageDeliveryDays,
+      } = req.body;
+
+      if (req.user?.role === 'vendor' || req.user?.vendorId) {
+        const vendor = await Vendor.findByIdAndUpdate(
+          req.user?.vendorId,
+          {
+            $set: {
+              ...(description && { description }),
+              ...(website && { website }),
+              ...(phone && { phone }),
+              ...(minOrderQuantity && { minOrderQuantity: Number(minOrderQuantity) }),
+              ...(averageDeliveryDays && { averageDeliveryDays: Number(averageDeliveryDays) }),
+              ...(procurementCategories && { categories: procurementCategories }),
+            },
+          },
+          { new: true }
+        );
+        return res.json({ message: 'Vendor onboarding updated', vendor });
+      }
+
       const company = await Company.findByIdAndUpdate(
         req.user?.companyId,
         {
@@ -176,7 +317,42 @@ export class AuthController {
         { new: true }
       );
 
-      return res.json({ message: 'Onboarding preferences updated', company });
+      return res.json({ message: 'Company onboarding updated', company });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  static async updateProfile(req: Request, res: Response) {
+    try {
+      const { name, department, phone, companyName, location, website, description } = req.body;
+      const user = await User.findById(req.user?.userId);
+      if (!user) return res.status(404).json({ error: 'User not found' });
+
+      if (name) user.name = name;
+      if (department) user.department = department;
+      await user.save();
+
+      if (user.role === 'vendor' && user.vendorId) {
+        await Vendor.findByIdAndUpdate(user.vendorId, {
+          $set: {
+            ...(companyName && { name: companyName }),
+            ...(location && { location }),
+            ...(website && { website }),
+            ...(description && { description }),
+            ...(phone && { phone }),
+          },
+        });
+      } else if (user.companyId) {
+        await Company.findByIdAndUpdate(user.companyId, {
+          $set: {
+            ...(companyName && { name: companyName }),
+            ...(location && { procurementLocation: location }),
+          },
+        });
+      }
+
+      return res.json({ message: 'Profile updated successfully' });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
     }

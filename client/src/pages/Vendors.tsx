@@ -17,79 +17,13 @@ export const VendorsPage: React.FC = () => {
     const fetchVendors = async () => {
       try {
         const res = await api.get('/vendors');
-        setVendors(res.data.vendors || []);
-        if (res.data.vendors && res.data.vendors.length > 0) {
-          setSelectedVendor(res.data.vendors[0]);
+        const list = res.data.vendors || [];
+        setVendors(list);
+        if (list.length > 0) {
+          setSelectedVendor(list[0]);
         }
       } catch (err) {
-        const fallback = [
-          {
-            _id: 'v1',
-            name: 'ErgoWorks Global',
-            categories: ['Ergonomic Office Furniture', 'Office & Workspace'],
-            reliabilityScore: 96,
-            qualityScore: 95,
-            pricingCompetitivenessScore: 91,
-            averageDeliveryDays: 16,
-            historicalSavingsPct: 12.4,
-            completedOrdersCount: 24,
-            totalSpendAmount: 84200,
-            location: 'Delhi NCR Hub / Worldwide',
-            contacts: [{ name: 'Sanjay Verma', email: 'sanjay@ergoworks.com' }],
-            verifiedSupplier: true,
-            tier: 'tier_1_preferred',
-          },
-          {
-            _id: 'v2',
-            name: 'TechSource Enterprise Logistics',
-            categories: ['IT Hardware & Workstations', 'Data Infrastructure'],
-            reliabilityScore: 98,
-            qualityScore: 97,
-            pricingCompetitivenessScore: 90,
-            averageDeliveryDays: 10,
-            historicalSavingsPct: 11.2,
-            completedOrdersCount: 35,
-            totalSpendAmount: 215000,
-            location: 'Global Distribution Network',
-            contacts: [{ name: 'David Miller', email: 'dmiller@techsource.com' }],
-            verifiedSupplier: true,
-            tier: 'tier_1_preferred',
-          },
-          {
-            _id: 'v3',
-            name: 'OfficePro Direct Solutions',
-            categories: ['Office Furniture', 'Supplies'],
-            reliabilityScore: 92,
-            qualityScore: 90,
-            pricingCompetitivenessScore: 89,
-            averageDeliveryDays: 14,
-            historicalSavingsPct: 9.8,
-            completedOrdersCount: 18,
-            totalSpendAmount: 51200,
-            location: 'Mumbai & Delhi Hub',
-            contacts: [{ name: 'Ananya Roy', email: 'ananya@officepro.com' }],
-            verifiedSupplier: true,
-            tier: 'tier_1_preferred',
-          },
-          {
-            _id: 'v4',
-            name: 'PackPro Sustainable Cartons',
-            categories: ['Packaging & Logistics'],
-            reliabilityScore: 94,
-            qualityScore: 93,
-            pricingCompetitivenessScore: 95,
-            averageDeliveryDays: 12,
-            historicalSavingsPct: 15.0,
-            completedOrdersCount: 14,
-            totalSpendAmount: 43800,
-            location: 'Delhi NCR Industrial Corridor',
-            contacts: [{ name: 'Vikram Mehta', email: 'vikram@packpro.in' }],
-            verifiedSupplier: true,
-            tier: 'tier_1_preferred',
-          },
-        ];
-        setVendors(fallback);
-        setSelectedVendor(fallback[0]);
+        setVendors([]);
       }
     };
     fetchVendors();
@@ -130,55 +64,67 @@ export const VendorsPage: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Vendor cards list */}
-        <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {filtered.map((vendor) => (
-            <motion.div
-              key={vendor._id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              onClick={() => setSelectedVendor(vendor)}
-              className={`p-5 rounded-3xl border cursor-pointer transition-all ${
-                selectedVendor?._id === vendor._id
-                  ? 'bg-purple-950/20 border-purple-500/50 shadow-xl'
-                  : 'bg-[#09090d]/60 border-white/[0.07] hover:border-white/[0.14]'
-              }`}
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-bold text-white text-base">{vendor.name}</h3>
-                  <span className="text-xs text-slate-400">{vendor.location}</span>
-                </div>
-                <span className="text-[10px] font-mono font-bold text-purple-300 bg-purple-950/60 border border-purple-800 px-2 py-0.5 rounded-full">
-                  {vendor.reliabilityScore}% SLA
-                </span>
-              </div>
+        <div className="lg:col-span-7">
+          {filtered.length === 0 ? (
+            <div className="bg-[#09090d]/60 border border-white/[0.07] rounded-3xl p-12 text-center text-slate-400">
+              <Building2 className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+              <h3 className="text-base font-semibold text-slate-200">No Suppliers Found</h3>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                {searchQuery ? `No vendors match "${searchQuery}".` : 'No vendors have registered or been added to the directory yet.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {filtered.map((vendor) => (
+                <motion.div
+                  key={vendor._id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  onClick={() => setSelectedVendor(vendor)}
+                  className={`p-5 rounded-3xl border cursor-pointer transition-all ${
+                    selectedVendor?._id === vendor._id
+                      ? 'bg-purple-950/20 border-purple-500/50 shadow-xl'
+                      : 'bg-[#09090d]/60 border-white/[0.07] hover:border-white/[0.14]'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-bold text-white text-base">{vendor.name}</h3>
+                      <span className="text-xs text-slate-400">{vendor.location}</span>
+                    </div>
+                    <span className="text-[10px] font-mono font-bold text-purple-300 bg-purple-950/60 border border-purple-800 px-2 py-0.5 rounded-full">
+                      {vendor.reliabilityScore || 90}% SLA
+                    </span>
+                  </div>
 
-              {/* Badges */}
-              <div className="flex flex-wrap gap-1.5 mt-3">
-                {vendor.categories?.slice(0, 2).map((cat: string, i: number) => (
-                  <span key={i} className="text-[10px] bg-black/40 px-2 py-0.5 rounded text-slate-400 border border-white/[0.04]">
-                    {cat}
-                  </span>
-                ))}
-              </div>
+                  {/* Badges */}
+                  <div className="flex flex-wrap gap-1.5 mt-3">
+                    {vendor.categories?.slice(0, 2).map((cat: string, i: number) => (
+                      <span key={i} className="text-[10px] bg-black/40 px-2 py-0.5 rounded text-slate-400 border border-white/[0.04]">
+                        {cat}
+                      </span>
+                    ))}
+                  </div>
 
-              {/* Stats */}
-              <div className="mt-4 pt-3 border-t border-white/[0.05] grid grid-cols-3 gap-2 text-xs">
-                <div>
-                  <span className="text-slate-500 block text-[10px]">Avg Lead</span>
-                  <span className="font-semibold text-slate-200 font-mono">{vendor.averageDeliveryDays}d</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block text-[10px]">Avg Discount</span>
-                  <span className="font-semibold text-emerald-400 font-mono">+{vendor.historicalSavingsPct}%</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block text-[10px]">Total Spend</span>
-                  <span className="font-semibold text-white font-mono">{formatCurrency(vendor.totalSpendAmount)}</span>
-                </div>
-              </div>
-            </motion.div>
-          ))}
+                  {/* Stats */}
+                  <div className="mt-4 pt-3 border-t border-white/[0.05] grid grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Avg Lead</span>
+                      <span className="font-semibold text-slate-200 font-mono">{vendor.averageDeliveryDays || 14}d</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Avg Discount</span>
+                      <span className="font-semibold text-emerald-400 font-mono">+{vendor.historicalSavingsPct || 10}%</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Total Spend</span>
+                      <span className="font-semibold text-white font-mono">{formatCurrency(vendor.totalSpendAmount || 0)}</span>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Selected Vendor Detail Panel */}

@@ -15,57 +15,13 @@ export const PurchaseOrdersPage: React.FC = () => {
     const fetchPOs = async () => {
       try {
         const res = await api.get('/purchase-orders');
-        setPurchaseOrders(res.data.purchaseOrders || []);
-        if (res.data.purchaseOrders && res.data.purchaseOrders.length > 0) {
-          setSelectedPO(res.data.purchaseOrders[0]);
+        const list = res.data.purchaseOrders || [];
+        setPurchaseOrders(list);
+        if (list.length > 0) {
+          setSelectedPO(list[0]);
         }
       } catch (err) {
-        const fallback = [
-          {
-            _id: 'po_1049',
-            poNumber: 'PO-2026-1049',
-            vendorName: 'TechSource Enterprise Logistics',
-            totalAmount: 96400,
-            currency: 'USD',
-            items: [
-              {
-                description: '30x Apple MacBook Pro 16" (M3 Max / 64GB / 1TB)',
-                quantity: 30,
-                unitPrice: 3213.33,
-                subtotal: 96400,
-              },
-            ],
-            deliveryAddress: 'Tech Park Central, Sector 62, Noida / Delhi NCR',
-            deliveryDeadline: '10 business days',
-            paymentTerms: 'Net 30 with hardware verification',
-            status: 'Acknowledged',
-            approvedBy: 'Karan Patel',
-            approvedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          },
-          {
-            _id: 'po_1048',
-            poNumber: 'PO-2026-1048',
-            vendorName: 'ErgoWorks Global',
-            totalAmount: 9840,
-            currency: 'USD',
-            items: [
-              {
-                description: '50x Ergonomic Executive Mesh Office Chairs',
-                quantity: 50,
-                unitPrice: 196.8,
-                subtotal: 9840,
-              },
-            ],
-            deliveryAddress: 'Okhla Phase III Regional Facility, Delhi, India',
-            deliveryDeadline: '18 business days',
-            paymentTerms: 'Net 30 following delivery QA',
-            status: 'Approved',
-            approvedBy: 'Karan Patel',
-            approvedAt: new Date().toISOString(),
-          },
-        ];
-        setPurchaseOrders(fallback);
-        setSelectedPO(fallback[0]);
+        setPurchaseOrders([]);
       }
     };
     fetchPOs();
@@ -100,39 +56,48 @@ export const PurchaseOrdersPage: React.FC = () => {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left: PO list */}
-        <div className="lg:col-span-4 space-y-3">
-          <h3 className="text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-400 px-1">
-            Issued Orders ({purchaseOrders.length})
-          </h3>
-          {purchaseOrders.map((po) => (
-            <div
-              key={po._id}
-              onClick={() => setSelectedPO(po)}
-              className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-                selectedPO?._id === po._id
-                  ? 'bg-purple-950/20 border-purple-500/50 shadow-md'
-                  : 'bg-[#09090d]/60 border-white/[0.06] hover:border-white/[0.12]'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-mono text-xs font-bold text-purple-300">{po.poNumber}</span>
-                <span className="text-[9px] font-mono px-2 py-0.5 rounded-full font-semibold bg-emerald-950/60 text-emerald-400 border border-emerald-800/60">
-                  {po.status}
-                </span>
-              </div>
-              <div className="font-semibold text-sm text-slate-100">{po.vendorName}</div>
-              <div className="flex justify-between items-center mt-2 text-xs text-slate-400">
-                <span>{po.items?.length || 1} line item(s)</span>
-                <span className="font-bold text-white font-mono">{formatCurrency(po.totalAmount, po.currency)}</span>
-              </div>
-            </div>
-          ))}
+      {purchaseOrders.length === 0 ? (
+        <div className="bg-[#09090d]/60 border border-white/[0.07] rounded-3xl p-16 text-center text-slate-400">
+          <ClipboardList className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+          <h3 className="text-base font-semibold text-slate-200">No Purchase Orders Issued</h3>
+          <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+            Once you review quotes and approve a purchase proposal in Approvals, binding POs will appear here automatically.
+          </p>
         </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Left: PO list */}
+          <div className="lg:col-span-4 space-y-3">
+            <h3 className="text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-400 px-1">
+              Issued Orders ({purchaseOrders.length})
+            </h3>
+            {purchaseOrders.map((po) => (
+              <div
+                key={po._id}
+                onClick={() => setSelectedPO(po)}
+                className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                  selectedPO?._id === po._id
+                    ? 'bg-purple-950/20 border-purple-500/50 shadow-md'
+                    : 'bg-[#09090d]/60 border-white/[0.06] hover:border-white/[0.12]'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-mono text-xs font-bold text-purple-300">{po.poNumber}</span>
+                  <span className="text-[9px] font-mono px-2 py-0.5 rounded-full font-semibold bg-emerald-950/60 text-emerald-400 border border-emerald-800/60">
+                    {po.status}
+                  </span>
+                </div>
+                <div className="font-semibold text-sm text-slate-100">{po.vendorName}</div>
+                <div className="flex justify-between items-center mt-2 text-xs text-slate-400">
+                  <span>{po.items?.length || 1} line item(s)</span>
+                  <span className="font-bold text-white font-mono">{formatCurrency(po.totalAmount, po.currency)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
 
-        {/* Right: Detailed PO Document Viewer */}
-        <div className="lg:col-span-8">
+          {/* Right: Detailed PO Document Viewer */}
+          <div className="lg:col-span-8">
           {selectedPO ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.98 }}
@@ -209,7 +174,7 @@ export const PurchaseOrdersPage: React.FC = () => {
                     {formatCurrency(selectedPO.totalAmount, selectedPO.currency)}
                   </div>
                   <span className="text-[11px] text-emerald-400 font-medium">
-                    Authorized Signer: {selectedPO.approvedBy || 'Karan Patel'}
+                    Authorized Signer: {selectedPO.approvedByName || selectedPO.approvedBy || 'Procurement Lead'}
                   </span>
                 </div>
               </div>
@@ -219,6 +184,7 @@ export const PurchaseOrdersPage: React.FC = () => {
           )}
         </div>
       </div>
+      )}
     </div>
   );
 };
